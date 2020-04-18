@@ -1,4 +1,4 @@
-package screen
+package Screen
 
 import (
 	"fmt"
@@ -8,16 +8,17 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell"
+	"github.com/manojVivek/vim_go/internal/actions"
 )
 
-var screen tcell.Screen
+var Screen tcell.Screen
 
 type cellData struct {
 	X, Y int
 	c    rune
 }
 
-// BlankScreen -  Show a blank file screen
+// BlankScreen -  Show a blank file Screen
 func BlankScreen() {
 	cmd := exec.Command("stty", "size")
 	cmd.Stdin = os.Stdin
@@ -35,32 +36,71 @@ func BlankScreen() {
 	print(text)
 }
 
-// Init - Initilizes the screen
+// Init - Initilizes the Screen
 func Init() {
 	s, err := tcell.NewScreen()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
-	screen = s
+	Screen = s
 	if e := s.Init(); e != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", e)
 		os.Exit(1)
 	}
-	screen.SetStyle(tcell.StyleDefault.
+	Screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
-	screen.Show()
+	Screen.Show()
 }
 
-// Close - Closes the screen
+// Close - Closes the Screen
 func Close() {
-	screen.Fini()
+	Screen.Fini()
+}
+
+// PollEvent - Waits for an event
+func PollEvent() {
+	ev := Screen.PollEvent()
+	switch ev := ev.(type) {
+	case *tcell.EventKey:
+		fmt.Printf("Event %v", ev.Key())
+	default:
+		fmt.Printf("Event %v", ev.When())
+	}
+}
+
+// PrintBuffer - function that listens the channel an prints the character as they are typed
+func PrintBuffer(c chan actions.Event) {
+	i := 0
+	escapePressed := false
+	for e := range c {
+		if e.Kind != "KEY_PRESS" {
+			continue
+		}
+		if e.Value == tcell.KeyEscape {
+			escapePressed = true
+			continue
+		}
+		if escapePressed {
+			if e.Rune == 'q' {
+				Close()
+				os.Exit(0)
+			} else {
+				escapePressed = false
+			}
+		}
+
+		Screen.SetContent(i, 0, e.Rune, nil, tcell.StyleDefault)
+		i = i + 1
+		Screen.Sync()
+	}
 }
 
 func print(text []cellData) {
 	for _, d := range text {
-		screen.SetContent(d.X, d.Y, d.c, nil, tcell.StyleDefault)
+		Screen.SetContent(d.X, d.Y, d.c, nil, tcell.StyleDefault)
 	}
-	screen.Sync()
+	Screen.ShowCursor(0, 0)
+	Screen.Sync()
 }

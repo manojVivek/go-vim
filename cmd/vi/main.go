@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/manojVivek/vim_go/internal/screen"
+	"github.com/manojVivek/vim_go/internal/actions"
+	screen "github.com/manojVivek/vim_go/internal/screen"
 )
 
 func main() {
@@ -12,6 +13,7 @@ func main() {
 	fmt.Printf("%s\n", os.Args[1])
 	screen.Init()
 	screen.BlankScreen()
-	fmt.Scanln()
+	c := actions.EventStream(screen.Screen)
+	screen.PrintBuffer(c)
 	screen.Close()
 }
