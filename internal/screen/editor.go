@@ -49,6 +49,16 @@ func HandleUserActions(c chan actions.Event) {
 		case tcell.KeyEnter:
 			newBuffer := make([]string, len(dataBuffer)+1)
 			copy(newBuffer, dataBuffer)
+			if cursorPosBuffer.Y < len(dataBuffer)-1 {
+				for i := len(newBuffer) - 1; i > cursorPosBuffer.Y; i-- {
+					newBuffer[i] = newBuffer[i-1]
+				}
+			}
+
+			if cursorPosBuffer.X < len(dataBuffer[cursorPosBuffer.Y]) {
+				newBuffer[cursorPosBuffer.Y] = dataBuffer[cursorPosBuffer.Y][:cursorPosBuffer.X]
+				newBuffer[cursorPosBuffer.Y+1] = dataBuffer[cursorPosBuffer.Y][cursorPosBuffer.X:]
+			}
 			cursorPosBuffer.Y++
 			cursorPosBuffer.X = 0
 			dataBuffer = newBuffer
