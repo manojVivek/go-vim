@@ -54,7 +54,7 @@ func Init() {
 	Screen.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
-	Screen.Show()
+	//Screen.Show()
 	updateScreenDimensions()
 	InitBuffer()
 }
@@ -64,12 +64,16 @@ func Close() {
 	Screen.Fini()
 }
 
-func syncTextFrame() {
+func displayTextFrame() {
 	for y := range textFrame {
 		for x := range textFrame[y] {
 			Screen.SetContent(x, y, textFrame[y][x], nil, tcell.StyleDefault)
 		}
 	}
-	Screen.ShowCursor(cursorPos.X, cursorPos.Y)
+	Screen.Sync()
+}
+
+func displayCursor() {
+	Screen.ShowCursor(cursorPosScreen.X, cursorPosScreen.Y)
 	Screen.Sync()
 }
