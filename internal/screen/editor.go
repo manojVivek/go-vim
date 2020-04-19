@@ -28,7 +28,7 @@ func InitBuffer() {
 		textFrame[i] = make([]rune, x)
 	}
 
-	// TODO: Fill the text from buffer
+	// TODO: Fill the dataBuffer from file
 
 	cursorPosBuffer = Vertex{0, 0}
 
@@ -46,14 +46,37 @@ func HandleUserActions(c chan actions.Event) {
 		switch e.Value {
 		case tcell.KeyEscape:
 			escapePressed = true
+		case tcell.KeyEnter:
+			newBuffer := make([]string, len(dataBuffer)+1)
+			copy(newBuffer, dataBuffer)
+			cursorPosBuffer.Y++
+			cursorPosBuffer.X = 0
+			dataBuffer = newBuffer
+			syncTextFrame()
 		case tcell.KeyLeft:
-			if cursorPosBuffer.X != 1 {
+			if cursorPosBuffer.X != 0 {
 				cursorPosBuffer.X--
 				syncCursor()
 			}
 		case tcell.KeyRight:
 			if cursorPosBuffer.X != len(dataBuffer[cursorPosBuffer.Y]) {
 				cursorPosBuffer.X++
+				syncCursor()
+			}
+		case tcell.KeyDown:
+			if cursorPosBuffer.Y+1 != len(dataBuffer) {
+				cursorPosBuffer.Y++
+				if len(dataBuffer[cursorPosBuffer.Y]) < cursorPosBuffer.X {
+					cursorPosBuffer.X = len(dataBuffer[cursorPosBuffer.Y])
+				}
+				syncCursor()
+			}
+		case tcell.KeyUp:
+			if cursorPosBuffer.Y != 0 {
+				cursorPosBuffer.Y--
+				if len(dataBuffer[cursorPosBuffer.Y]) < cursorPosBuffer.X {
+					cursorPosBuffer.X = len(dataBuffer[cursorPosBuffer.Y])
+				}
 				syncCursor()
 			}
 		default:
