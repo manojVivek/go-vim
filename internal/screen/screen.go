@@ -1,4 +1,4 @@
-package Screen
+package screen
 
 import (
 	"fmt"
@@ -8,10 +8,14 @@ import (
 	"strings"
 
 	"github.com/gdamore/tcell"
-	"github.com/manojVivek/vim_go/internal/actions"
 )
 
 var Screen tcell.Screen
+var screenDim Dimension
+
+type Dimension struct {
+	X, Y int
+}
 
 type cellData struct {
 	X, Y int
@@ -20,6 +24,10 @@ type cellData struct {
 
 // BlankScreen -  Show a blank file Screen
 func BlankScreen() {
+
+}
+
+func updateScreenDimensions() {
 	cmd := exec.Command("stty", "size")
 	cmd.Stdin = os.Stdin
 	out, _ := cmd.Output()
@@ -28,12 +36,7 @@ func BlankScreen() {
 	height := int(heightI64)
 	widthI64, _ := strconv.ParseInt(strings.TrimSpace(dim[1]), 10, 0)
 	width := int(widthI64)
-	fmt.Printf("out: %v %v \n", height, width)
-	text := make([]cellData, height)
-	for i := 0; i < height; i++ {
-		text[i] = cellData{0, i, '~'}
-	}
-	print(text)
+	screenDim = Dimension{width, height}
 }
 
 // Init - Initilizes the Screen
@@ -52,6 +55,8 @@ func Init() {
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
 	Screen.Show()
+	updateScreenDimensions()
+	InitBuffer()
 }
 
 // Close - Closes the Screen
@@ -59,48 +64,12 @@ func Close() {
 	Screen.Fini()
 }
 
-// PollEvent - Waits for an event
-func PollEvent() {
-	ev := Screen.PollEvent()
-	switch ev := ev.(type) {
-	case *tcell.EventKey:
-		fmt.Printf("Event %v", ev.Key())
-	default:
-		fmt.Printf("Event %v", ev.When())
-	}
-}
-
-// PrintBuffer - function that listens the channel an prints the character as they are typed
-func PrintBuffer(c chan actions.Event) {
-	i := 0
-	escapePressed := false
-	for e := range c {
-		if e.Kind != "KEY_PRESS" {
-			continue
+func syncTextFrame() {
+	for y := range textFrame {
+		for x := range textFrame[y] {
+			Screen.SetContent(x, y, textFrame[y][x], nil, tcell.StyleDefault)
 		}
-		if e.Value == tcell.KeyEscape {
-			escapePressed = true
-			continue
-		}
-		if escapePressed {
-			if e.Rune == 'q' {
-				Close()
-				os.Exit(0)
-			} else {
-				escapePressed = false
-			}
-		}
-
-		Screen.SetContent(i, 0, e.Rune, nil, tcell.StyleDefault)
-		i = i + 1
-		Screen.Sync()
 	}
-}
-
-func print(text []cellData) {
-	for _, d := range text {
-		Screen.SetContent(d.X, d.Y, d.c, nil, tcell.StyleDefault)
-	}
-	Screen.ShowCursor(0, 0)
+	Screen.ShowCursor(cursorPos.X, cursorPos.Y)
 	Screen.Sync()
 }

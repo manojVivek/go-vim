@@ -1,8 +1,6 @@
 package actions
 
 import (
-	"fmt"
-
 	"github.com/gdamore/tcell"
 )
 
@@ -27,7 +25,7 @@ func pollAndStreamEvents(s tcell.Screen, c chan Event) {
 		case *tcell.EventKey:
 			c <- Event{"KEY_PRESS", ev.Key(), ev.Rune()}
 		default:
-			fmt.Printf("Event %v", ev.When())
+			//fmt.Printf("Event %v", ev.When())
 		}
 	}
 }
