@@ -26,6 +26,7 @@ var textFrame [][]rune
 var startLine int = 0
 var cursorPosBuffer Vertex
 var cursorPosScreen Vertex
+var currentCommand string
 
 // InitBuffer - Intialize the textFrame with filecontent / blank file content
 func InitBuffer() {
@@ -62,23 +63,46 @@ func HandleUserActions(c chan actions.Event) {
 			switch e.Rune {
 			case ':':
 				currentMode = MODE_COMMAND_LINE
+				handleKeyCommandLineMode(e)
 			case 'i':
 				currentMode = MODE_INSERT
-			case 'q':
-				//TODO Remove this after the command line handler is implmented
-				Close()
-				os.Exit(0)
 			}
 		case MODE_COMMAND_LINE:
 			if e.Value == tcell.KeyEscape {
 				currentMode = MODE_NORMAL
-				// TODO reset any commands captured for command line
+				currentCommand = ""
+				displayCommand()
 				continue
 			}
-			// TODO capture the command string as typed
+			if e.Value == tcell.KeyEnter {
+				runCommand(currentCommand)
+			}
+			handleKeyCommandLineMode(e)
 		}
 
 	}
+}
+
+func runCommand(cmd string) {
+	switch cmd {
+	case ":q":
+		Close()
+		os.Exit(0)
+	default:
+		currentCommand = ""
+	}
+}
+
+func handleKeyCommandLineMode(e actions.Event) {
+	if e.Rune == 0 {
+		return
+	}
+	if e.Value == tcell.KeyBackspace || e.Value == tcell.KeyBackspace2 {
+		currentCommand = currentCommand[:len(currentCommand)-1]
+	} else {
+		currentCommand += string(e.Rune)
+	}
+	displayCommand()
 }
 
 func handleKeyInsertMode(e actions.Event) {
@@ -161,12 +185,13 @@ func syncTextFrame() {
 			}
 		}
 		y++
+		if y == screenDim.Y {
+			break
+		}
 	}
 	//Fill the empty lines in the frame with '~' char
-	if y < screenDim.Y {
-		for ; y < screenDim.Y; y++ {
-			textFrame[y][0] = '~'
-		}
+	for ; y < screenDim.Y-1; y++ {
+		textFrame[y][0] = '~'
 	}
 
 	//fmt.Printf("Values: %v", textFrame[0])

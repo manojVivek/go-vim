@@ -73,6 +73,16 @@ func displayTextFrame() {
 	Screen.Sync()
 }
 
+func displayCommand() {
+	for x := 0; x < screenDim.Y; x++ {
+		Screen.SetContent(x, screenDim.Y-1, ' ', nil, tcell.StyleDefault)
+	}
+	for x, c := range currentCommand {
+		Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+	}
+	Screen.Sync()
+}
+
 func displayCursor() {
 	Screen.ShowCursor(cursorPosScreen.X, cursorPosScreen.Y)
 	Screen.Sync()
