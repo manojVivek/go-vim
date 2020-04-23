@@ -11,7 +11,7 @@ import (
 func main() {
 	fmt.Printf("hello, world \n")
 	fmt.Printf("%s\n", os.Args[1])
-	screen.Init()
+	screen.Init(os.Args[1])
 	c := actions.EventStream(screen.Screen)
 	screen.HandleUserActions(c)
 	screen.Close()

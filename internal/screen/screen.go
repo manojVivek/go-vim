@@ -40,7 +40,7 @@ func updateScreenDimensions() {
 }
 
 // Init - Initilizes the Screen
-func Init() {
+func Init(fileName string) {
 	s, err := tcell.NewScreen()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -56,7 +56,7 @@ func Init() {
 		Background(tcell.ColorWhite))
 	//Screen.Show()
 	updateScreenDimensions()
-	InitBuffer()
+	InitBuffer(fileName)
 }
 
 // Close - Closes the Screen

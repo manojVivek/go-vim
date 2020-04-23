@@ -6,6 +6,7 @@ import (
 
 	"github.com/gdamore/tcell"
 	"github.com/manojVivek/vim_go/internal/actions"
+	"github.com/manojVivek/vim_go/internal/fs"
 )
 
 type Vertex struct {
@@ -21,7 +22,8 @@ const (
 )
 
 var currentMode = MODE_NORMAL
-var dataBuffer []string = make([]string, 1)
+var fileName string
+var dataBuffer []string
 var textFrame [][]rune
 var startLine int = 0
 var cursorPosBuffer Vertex
@@ -29,16 +31,15 @@ var cursorPosScreen Vertex
 var currentCommand string
 
 // InitBuffer - Intialize the textFrame with filecontent / blank file content
-func InitBuffer() {
-	x := screenDim.X
-	y := screenDim.Y
-
-	textFrame = make([][]rune, y)
-	for i := range textFrame {
-		textFrame[i] = make([]rune, x)
+func InitBuffer(f string) {
+	// TODO: Load only the required portion in memory instead of whole file
+	fileName = f
+	var err error
+	dataBuffer, err = fs.ReadFileToLines(f)
+	fmt.Printf("filecontent %v %v", dataBuffer, err)
+	if err != nil {
+		dataBuffer = make([]string, 1)
 	}
-
-	// TODO: Fill the dataBuffer from file
 
 	cursorPosBuffer = Vertex{0, 0}
 
@@ -86,6 +87,10 @@ func HandleUserActions(c chan actions.Event) {
 func runCommand(cmd string) {
 	switch cmd {
 	case ":q":
+		Close()
+		os.Exit(0)
+	case ":wq":
+		fs.WriteLinesToFile(fileName, dataBuffer)
 		Close()
 		os.Exit(0)
 	default:
