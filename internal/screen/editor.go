@@ -71,8 +71,16 @@ func HandleUserActions(c chan actions.Event) {
 				displayStatusBar()
 				continue
 			}
+			if handleTextAreaCursorMovement(e) {
+				syncCursor()
+				continue
+			}
 			handleKeyInsertMode(e)
 		case MODE_NORMAL:
+			if handleTextAreaCursorMovement(e) {
+				syncCursor()
+				continue
+			}
 			switch e.Rune {
 			case ':':
 				currentMode = MODE_COMMAND_LINE
@@ -97,6 +105,65 @@ func HandleUserActions(c chan actions.Event) {
 		}
 
 	}
+}
+
+func handleTextAreaCursorMovement(e actions.Event) bool {
+	isProcessed := true
+	rangeX := len(dataBuffer[cursorPosBuffer.Y])
+	rangeY := len(dataBuffer)
+	if currentMode != MODE_INSERT {
+		rangeX--
+		if rangeX < 0 {
+			rangeX = 0
+		}
+	}
+	switch e.Value {
+	case tcell.KeyLeft:
+		if cursorPosBuffer.X != 0 {
+			cursorPosBuffer.X--
+			syncCursor()
+		}
+	case tcell.KeyRight:
+		if cursorPosBuffer.X != rangeX {
+			cursorPosBuffer.X++
+			syncCursor()
+		}
+	case tcell.KeyDown:
+		if cursorPosBuffer.Y+1 != rangeY {
+			cursorPosBuffer.Y++
+			rangeX = len(dataBuffer[cursorPosBuffer.Y])
+			rangeY = len(dataBuffer)
+			if currentMode != MODE_INSERT {
+				rangeX--
+				if rangeX < 0 {
+					rangeX = 0
+				}
+			}
+			if rangeX < cursorPosBuffer.X {
+				cursorPosBuffer.X = rangeX
+			}
+			syncCursor()
+		}
+	case tcell.KeyUp:
+		if cursorPosBuffer.Y != 0 {
+			cursorPosBuffer.Y--
+			rangeX = len(dataBuffer[cursorPosBuffer.Y])
+			rangeY = len(dataBuffer)
+			if currentMode != MODE_INSERT {
+				rangeX--
+				if rangeX < 0 {
+					rangeX = 0
+				}
+			}
+			if rangeX < cursorPosBuffer.X {
+				cursorPosBuffer.X = rangeX
+			}
+			syncCursor()
+		}
+	default:
+		isProcessed = false
+	}
+	return isProcessed
 }
 
 func runCommand(cmd string) {
@@ -144,32 +211,6 @@ func handleKeyInsertMode(e actions.Event) {
 		cursorPosBuffer.X = 0
 		dataBuffer = newBuffer
 		syncTextFrame()
-	case tcell.KeyLeft:
-		if cursorPosBuffer.X != 0 {
-			cursorPosBuffer.X--
-			syncCursor()
-		}
-	case tcell.KeyRight:
-		if cursorPosBuffer.X != len(dataBuffer[cursorPosBuffer.Y]) {
-			cursorPosBuffer.X++
-			syncCursor()
-		}
-	case tcell.KeyDown:
-		if cursorPosBuffer.Y+1 != len(dataBuffer) {
-			cursorPosBuffer.Y++
-			if len(dataBuffer[cursorPosBuffer.Y]) < cursorPosBuffer.X {
-				cursorPosBuffer.X = len(dataBuffer[cursorPosBuffer.Y])
-			}
-			syncCursor()
-		}
-	case tcell.KeyUp:
-		if cursorPosBuffer.Y != 0 {
-			cursorPosBuffer.Y--
-			if len(dataBuffer[cursorPosBuffer.Y]) < cursorPosBuffer.X {
-				cursorPosBuffer.X = len(dataBuffer[cursorPosBuffer.Y])
-			}
-			syncCursor()
-		}
 	default:
 		if e.Rune == 0 {
 			return

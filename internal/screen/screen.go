@@ -74,7 +74,7 @@ func displayTextFrame() {
 }
 
 func displayStatusBar() {
-	for x := 0; x < screenDim.Y; x++ {
+	for x := 0; x < screenDim.X; x++ {
 		Screen.SetContent(x, screenDim.Y-1, ' ', nil, tcell.StyleDefault)
 	}
 	if len(statusMessage) > 0 {
