@@ -73,12 +73,18 @@ func displayTextFrame() {
 	Screen.Sync()
 }
 
-func displayCommand() {
+func displayStatusBar() {
 	for x := 0; x < screenDim.Y; x++ {
 		Screen.SetContent(x, screenDim.Y-1, ' ', nil, tcell.StyleDefault)
 	}
-	for x, c := range currentCommand {
-		Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+	if len(statusMessage) > 0 {
+		for x, c := range statusMessage {
+			Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+		}
+	} else {
+		for x, c := range currentCommand {
+			Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+		}
 	}
 	Screen.Sync()
 }

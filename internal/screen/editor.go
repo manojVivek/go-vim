@@ -22,6 +22,7 @@ const (
 )
 
 var currentMode = MODE_NORMAL
+var statusMessage string
 var fileName string
 var dataBuffer []string
 var textFrame [][]rune
@@ -37,14 +38,23 @@ func InitBuffer(f string) {
 	var err error
 	dataBuffer, err = fs.ReadFileToLines(f)
 	fmt.Printf("filecontent %v %v", dataBuffer, err)
+	statusMessage = fmt.Sprintf("\"%v\"", f)
 	if err != nil {
 		dataBuffer = make([]string, 1)
+		statusMessage += " [New File]"
+	} else {
+		charCount := 0
+		for _, line := range dataBuffer {
+			charCount += len(line) + 1
+		}
+		statusMessage += fmt.Sprintf(" %vL, %vC", len(dataBuffer), charCount)
 	}
 
 	cursorPosBuffer = Vertex{0, 0}
 
 	syncTextFrame()
 	syncCursor()
+	displayStatusBar()
 }
 
 // HandleUserActions - function that listens the user input channel and handles it appropriately
@@ -57,6 +67,8 @@ func HandleUserActions(c chan actions.Event) {
 		case MODE_INSERT:
 			if e.Value == tcell.KeyEscape {
 				currentMode = MODE_NORMAL
+				statusMessage = ""
+				displayStatusBar()
 				continue
 			}
 			handleKeyInsertMode(e)
@@ -64,15 +76,18 @@ func HandleUserActions(c chan actions.Event) {
 			switch e.Rune {
 			case ':':
 				currentMode = MODE_COMMAND_LINE
+				statusMessage = ""
 				handleKeyCommandLineMode(e)
 			case 'i':
 				currentMode = MODE_INSERT
+				statusMessage = "-- INSERT --"
+				displayStatusBar()
 			}
 		case MODE_COMMAND_LINE:
 			if e.Value == tcell.KeyEscape {
 				currentMode = MODE_NORMAL
 				currentCommand = ""
-				displayCommand()
+				displayStatusBar()
 				continue
 			}
 			if e.Value == tcell.KeyEnter {
@@ -107,7 +122,7 @@ func handleKeyCommandLineMode(e actions.Event) {
 	} else {
 		currentCommand += string(e.Rune)
 	}
-	displayCommand()
+	displayStatusBar()
 }
 
 func handleKeyInsertMode(e actions.Event) {
@@ -173,7 +188,7 @@ func handleKeyInsertMode(e actions.Event) {
 func syncTextFrame() {
 	x := 0
 	y := 0
-	textFrame = make([][]rune, screenDim.Y)
+	textFrame = make([][]rune, screenDim.Y-1)
 	for i := range textFrame {
 		textFrame[i] = make([]rune, screenDim.X)
 	}
