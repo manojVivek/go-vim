@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/gdamore/tcell"
-	"github.com/manojVivek/vim_go/internal/actions"
-	"github.com/manojVivek/vim_go/internal/fs"
+	"github.com/manojVivek/go-vim/internal/actions"
+	"github.com/manojVivek/go-vim/internal/fs"
 )
 
 type Vertex struct {
