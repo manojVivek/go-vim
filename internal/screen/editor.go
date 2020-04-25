@@ -69,6 +69,8 @@ func HandleUserActions(c chan actions.Event) {
 				currentMode = MODE_NORMAL
 				statusMessage = ""
 				displayStatusBar()
+				fixCursorOverflow()
+				syncCursor()
 				continue
 			}
 			if handleTextAreaCursorMovement(e) {
@@ -109,14 +111,7 @@ func HandleUserActions(c chan actions.Event) {
 
 func handleTextAreaCursorMovement(e actions.Event) bool {
 	isProcessed := true
-	rangeX := len(dataBuffer[cursorPosBuffer.Y])
 	rangeY := len(dataBuffer)
-	if currentMode != MODE_INSERT {
-		rangeX--
-		if rangeX < 0 {
-			rangeX = 0
-		}
-	}
 	switch e.Value {
 	case tcell.KeyLeft:
 		if cursorPosBuffer.X != 0 {
@@ -124,46 +119,38 @@ func handleTextAreaCursorMovement(e actions.Event) bool {
 			syncCursor()
 		}
 	case tcell.KeyRight:
-		if cursorPosBuffer.X != rangeX {
-			cursorPosBuffer.X++
-			syncCursor()
-		}
+		cursorPosBuffer.X++
+		fixCursorOverflow()
+		syncCursor()
 	case tcell.KeyDown:
 		if cursorPosBuffer.Y+1 != rangeY {
 			cursorPosBuffer.Y++
-			rangeX = len(dataBuffer[cursorPosBuffer.Y])
-			rangeY = len(dataBuffer)
-			if currentMode != MODE_INSERT {
-				rangeX--
-				if rangeX < 0 {
-					rangeX = 0
-				}
-			}
-			if rangeX < cursorPosBuffer.X {
-				cursorPosBuffer.X = rangeX
-			}
+			fixCursorOverflow()
 			syncCursor()
 		}
 	case tcell.KeyUp:
 		if cursorPosBuffer.Y != 0 {
 			cursorPosBuffer.Y--
-			rangeX = len(dataBuffer[cursorPosBuffer.Y])
-			rangeY = len(dataBuffer)
-			if currentMode != MODE_INSERT {
-				rangeX--
-				if rangeX < 0 {
-					rangeX = 0
-				}
-			}
-			if rangeX < cursorPosBuffer.X {
-				cursorPosBuffer.X = rangeX
-			}
+			fixCursorOverflow()
 			syncCursor()
 		}
 	default:
 		isProcessed = false
 	}
 	return isProcessed
+}
+
+func fixCursorOverflow() {
+	rangeX := len(dataBuffer[cursorPosBuffer.Y])
+	if currentMode != MODE_INSERT {
+		rangeX--
+		if rangeX < 0 {
+			rangeX = 0
+		}
+	}
+	if rangeX < cursorPosBuffer.X {
+		cursorPosBuffer.X = rangeX
+	}
 }
 
 func runCommand(cmd string) {
