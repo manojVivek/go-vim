@@ -70,7 +70,7 @@ func displayTextFrame() {
 			Screen.SetContent(x, y, textFrame[y][x], nil, tcell.StyleDefault)
 		}
 	}
-	Screen.Sync()
+	Screen.Show()
 }
 
 func displayStatusBar() {
@@ -86,10 +86,10 @@ func displayStatusBar() {
 			Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
 		}
 	}
-	Screen.Sync()
+	Screen.Show()
 }
 
 func displayCursor() {
 	Screen.ShowCursor(cursorPosScreen.X, cursorPosScreen.Y)
-	Screen.Sync()
+	Screen.Show()
 }
