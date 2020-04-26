@@ -21,6 +21,15 @@ const (
 	MODE_COMMAND_LINE mode = "COMMAND_LINE"
 )
 
+type cursorMovement string
+
+const (
+	CURSOR_UP    cursorMovement = "UP"
+	CURSOR_DOWN  cursorMovement = "DOWN"
+	CURSOR_RIGHT cursorMovement = "RIGHT"
+	CURSOR_LEFT  cursorMovement = "LEFT"
+)
+
 var currentMode = MODE_NORMAL
 var statusMessage string
 var fileName string
@@ -30,6 +39,9 @@ var startLine int = 0
 var cursorPosBuffer Vertex
 var cursorPosScreen Vertex
 var currentCommand string
+var lastUpDownCursorMovement cursorMovement = CURSOR_UP
+var firstLineInFrame int = 0
+var lastLineInFrame int
 
 // InitBuffer - Intialize the textFrame with filecontent / blank file content
 func InitBuffer(f string) {
@@ -52,7 +64,7 @@ func InitBuffer(f string) {
 
 	cursorPosBuffer = Vertex{0, 0}
 
-	syncTextFrame()
+	syncTextFrame(false)
 	syncCursor()
 	displayStatusBar()
 }
@@ -69,7 +81,7 @@ func HandleUserActions(c chan actions.Event) {
 				currentMode = MODE_NORMAL
 				statusMessage = ""
 				displayStatusBar()
-				fixCursorOverflow()
+				fixHorizontalCursorOverflow()
 				syncCursor()
 				continue
 			}
@@ -120,18 +132,27 @@ func handleTextAreaCursorMovement(e actions.Event) bool {
 		}
 	case tcell.KeyRight:
 		cursorPosBuffer.X++
-		fixCursorOverflow()
+		fixHorizontalCursorOverflow()
 		syncCursor()
 	case tcell.KeyDown:
 		if cursorPosBuffer.Y+1 != rangeY {
 			cursorPosBuffer.Y++
-			fixCursorOverflow()
+			lastUpDownCursorMovement = CURSOR_DOWN
+			fixHorizontalCursorOverflow()
+			fixVerticalCursorOverflow()
 			syncCursor()
 		}
 	case tcell.KeyUp:
 		if cursorPosBuffer.Y != 0 {
 			cursorPosBuffer.Y--
-			fixCursorOverflow()
+			lastUpDownCursorMovement = CURSOR_UP
+			fixHorizontalCursorOverflow()
+			if cursorPosBuffer.Y < firstLineInFrame {
+				firstLineInFrame--
+				if lastLineInFrame-firstLineInFrame > screenDim.Y-1 {
+					lastLineInFrame--
+				}
+			}
 			syncCursor()
 		}
 	default:
@@ -140,7 +161,18 @@ func handleTextAreaCursorMovement(e actions.Event) bool {
 	return isProcessed
 }
 
-func fixCursorOverflow() {
+func fixVerticalCursorOverflow() {
+	if cursorPosBuffer.Y >= lastLineInFrame {
+		lastLineInFrame++
+		if lastLineInFrame-firstLineInFrame > screenDim.Y-2 {
+			//Close()
+			//fmt.Printf("Incrementing")
+			firstLineInFrame++
+		}
+	}
+}
+
+func fixHorizontalCursorOverflow() {
 	rangeX := len(dataBuffer[cursorPosBuffer.Y])
 	if currentMode != MODE_INSERT {
 		rangeX--
@@ -196,35 +228,62 @@ func handleKeyInsertMode(e actions.Event) {
 		}
 		cursorPosBuffer.Y++
 		cursorPosBuffer.X = 0
+		lastUpDownCursorMovement = CURSOR_DOWN
 		dataBuffer = newBuffer
-		syncTextFrame()
+		fixVerticalCursorOverflow()
+		syncTextFrame(false)
 	default:
 		if e.Rune == 0 {
 			return
 		}
 		line := dataBuffer[cursorPosBuffer.Y]
 		dataBuffer[cursorPosBuffer.Y] = line[:cursorPosBuffer.X] + string(e.Rune) + line[cursorPosBuffer.X:]
-		if false && e.Rune == 'x' {
-			Close()
-			fmt.Printf("Data: %v", dataBuffer)
-		}
 		cursorPosBuffer.X++
-		syncTextFrame()
+		syncTextFrame(false)
 	}
 }
 
-func syncTextFrame() {
+func syncTextFrame(dontSyncCursor bool) {
+
+	textFrameTemp := fillTextFrameFromTop()
+
+	textFrameTemp = fillEmptyLinesIfAnyWithTilde(textFrameTemp)
+
+	textFrame = textFrameTemp
+	displayTextFrame()
+	if dontSyncCursor == false {
+		syncCursor()
+	}
+}
+
+func fillEmptyLinesIfAnyWithTilde(textFrameTemp [][]rune) [][]rune {
+	//Fill the empty lines in the frame with '~' char
+	for i := range textFrameTemp {
+		if textFrameTemp[i] != nil {
+			continue
+		}
+		textFrameTemp[i] = make([]rune, screenDim.X)
+		if i == 0 {
+			continue
+		}
+		textFrameTemp[i][0] = '~'
+	}
+	return textFrameTemp
+}
+
+func fillTextFrameFromTop() [][]rune {
 	x := 0
 	y := 0
-	textFrame = make([][]rune, screenDim.Y-1)
-	for i := range textFrame {
-		textFrame[i] = make([]rune, screenDim.X)
-	}
-	for _, line := range dataBuffer {
+	textFrameTemp := make([][]rune, screenDim.Y-1)
+	i := firstLineInFrame
+	for {
 		x = 0
+		line := dataBuffer[i]
 		for _, char := range line {
-			//fmt.Printf("char %v %v %v \n", x, y, char)
-			textFrame[y][x] = char
+			if textFrameTemp[y] == nil {
+				textFrameTemp[y] = make([]rune, screenDim.X)
+			}
+			textFrameTemp[y][x] = char
 			if x+1 == screenDim.X {
 				x = 0
 				y++
@@ -232,29 +291,28 @@ func syncTextFrame() {
 				x++
 			}
 		}
-		y++
-		if y == screenDim.Y {
+
+		if i+1 == len(dataBuffer) {
 			break
 		}
+		i++
+		if y == screenDim.Y-2 {
+			break
+		}
+		y++
 	}
-	//Fill the empty lines in the frame with '~' char
-	for ; y < screenDim.Y-1; y++ {
-		textFrame[y][0] = '~'
-	}
-
-	//fmt.Printf("Values: %v", textFrame[0])
-	//os.Exit(0)
-
-	displayTextFrame()
-	syncCursor()
+	lastLineInFrame = i
+	return textFrameTemp
 }
 
 func syncCursor() {
 	cursorPosScreen = Vertex{cursorPosBuffer.X, cursorPosBuffer.Y}
+	cursorPosScreen.Y -= firstLineInFrame
 	for cursorPosScreen.X > screenDim.X {
 		cursorPosScreen.X -= screenDim.X
 		cursorPosScreen.Y++
 	}
 
+	syncTextFrame(true)
 	displayCursor()
 }
