@@ -165,8 +165,6 @@ func fixVerticalCursorOverflow() {
 	if cursorPosBuffer.Y >= lastLineInFrame {
 		lastLineInFrame++
 		if lastLineInFrame-firstLineInFrame > screenDim.Y-2 {
-			//Close()
-			//fmt.Printf("Incrementing")
 			firstLineInFrame++
 		}
 	}
@@ -258,15 +256,17 @@ func syncTextFrame(dontSyncCursor bool) {
 
 func fillEmptyLinesIfAnyWithTilde(textFrameTemp [][]rune) [][]rune {
 	//Fill the empty lines in the frame with '~' char
-	for i := range textFrameTemp {
+	shouldTilde := true
+	for i := len(textFrameTemp) - 1; i > 0; i-- {
 		if textFrameTemp[i] != nil {
+			shouldTilde = false
 			continue
 		}
 		textFrameTemp[i] = make([]rune, screenDim.X)
-		if i == 0 {
-			continue
+		if shouldTilde {
+			textFrameTemp[i][0] = '~'
 		}
-		textFrameTemp[i][0] = '~'
+
 	}
 	return textFrameTemp
 }
@@ -308,6 +308,9 @@ func fillTextFrameFromTop() [][]rune {
 func syncCursor() {
 	cursorPosScreen = Vertex{cursorPosBuffer.X, cursorPosBuffer.Y}
 	cursorPosScreen.Y -= firstLineInFrame
+	for i := firstLineInFrame; i < cursorPosBuffer.Y; i++ {
+		cursorPosScreen.Y += (len(dataBuffer[i]) / screenDim.X)
+	}
 	for cursorPosScreen.X > screenDim.X {
 		cursorPosScreen.X -= screenDim.X
 		cursorPosScreen.Y++
