@@ -236,6 +236,34 @@ func handleKeyInsertMode(e actions.Event) {
 		dataBuffer = newBuffer
 		fixVerticalCursorOverflow()
 		syncTextFrame(false)
+	case tcell.KeyBackspace, tcell.KeyBackspace2:
+		if cursorPosBuffer.X == 0 && cursorPosBuffer.Y == 0 {
+			return
+		}
+		if cursorPosBuffer.X > 0 {
+			// Delete a character in a line
+			line := dataBuffer[cursorPosBuffer.Y]
+			dataBuffer[cursorPosBuffer.Y] = line[:cursorPosBuffer.X-1] + line[cursorPosBuffer.X:]
+			cursorPosBuffer.X--
+		} else {
+			// Merge the contents of this line to previous line
+			newBuffer := make([]string, len(dataBuffer)-1)
+			j := 0
+			for i, line := range dataBuffer {
+				if i == cursorPosBuffer.Y {
+					continue
+				}
+				if i == cursorPosBuffer.Y-1 {
+					line = line + dataBuffer[cursorPosBuffer.Y]
+				}
+				newBuffer[j] = line
+				j++
+			}
+			cursorPosBuffer.X = len(dataBuffer[cursorPosBuffer.Y-1])
+			cursorPosBuffer.Y--
+			dataBuffer = newBuffer
+		}
+		syncTextFrame(false)
 	default:
 		if e.Rune == 0 {
 			return
