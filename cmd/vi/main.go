@@ -6,10 +6,13 @@ import (
 	"os"
 
 	"github.com/manojVivek/go-vim/internal/actions"
+	"github.com/manojVivek/go-vim/internal/logger"
 	"github.com/manojVivek/go-vim/internal/screen"
 )
 
 func main() {
+	logger.InitLogger()
+	logger.Debug.Printf("Starting")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\n    go-vim [options] filename\n\n")

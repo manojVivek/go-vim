@@ -162,10 +162,16 @@ func handleTextAreaCursorMovement(e actions.Event) bool {
 }
 
 func fixVerticalCursorOverflow() {
-	if cursorPosBuffer.Y >= lastLineInFrame {
+	if cursorPosBuffer.Y > lastLineInFrame {
+		if lastLineInFrame+1 >= len(dataBuffer) {
+			return
+		}
 		lastLineInFrame++
 		if lastLineInFrame-firstLineInFrame > screenDim.Y-2 {
 			firstLineInFrame++
+		}
+		for i := lastLineInFrame; i >= firstLineInFrame; i-- {
+			firstLineInFrame += len(dataBuffer[i]) / screenDim.X
 		}
 	}
 }
@@ -292,13 +298,10 @@ func fillTextFrameFromTop() [][]rune {
 			}
 		}
 
-		if i+1 == len(dataBuffer) {
+		if i+1 == len(dataBuffer) || y == screenDim.Y-2 {
 			break
 		}
 		i++
-		if y == screenDim.Y-2 {
-			break
-		}
 		y++
 	}
 	lastLineInFrame = i
