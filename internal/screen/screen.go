@@ -1,7 +1,6 @@
 package screen
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"strconv"
@@ -10,9 +9,7 @@ import (
 	"github.com/gdamore/tcell"
 )
 
-var Screen tcell.Screen
-var screenDim Dimension
-
+// Dimension is a struct that has X and Y field to represent a rectangle
 type Dimension struct {
 	X, Y int
 }
@@ -22,12 +19,13 @@ type cellData struct {
 	c    rune
 }
 
-// BlankScreen -  Show a blank file Screen
-func BlankScreen() {
-
+// Screen is a struct that has the logic to display the editor state on the terminal
+type Screen struct {
+	tScreen   tcell.Screen
+	screenDim Dimension
 }
 
-func updateScreenDimensions() {
+func (s *Screen) updateScreenDimensions() {
 	cmd := exec.Command("stty", "size")
 	cmd.Stdin = os.Stdin
 	out, _ := cmd.Output()
@@ -36,60 +34,58 @@ func updateScreenDimensions() {
 	height := int(heightI64)
 	widthI64, _ := strconv.ParseInt(strings.TrimSpace(dim[1]), 10, 0)
 	width := int(widthI64)
-	screenDim = Dimension{width, height}
+	s.screenDim = Dimension{width, height}
 }
 
 // Init - Initilizes the Screen
-func Init(fileName string) {
+func NewScreen() (*Screen, error) {
 	s, err := tcell.NewScreen()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
-		os.Exit(1)
+		return nil, err
 	}
-	Screen = s
 	if e := s.Init(); e != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", e)
-		os.Exit(1)
+		return nil, err
 	}
-	Screen.SetStyle(tcell.StyleDefault.
+	s.SetStyle(tcell.StyleDefault.
 		Foreground(tcell.ColorBlack).
 		Background(tcell.ColorWhite))
 	//Screen.Show()
-	updateScreenDimensions()
-	InitBuffer(fileName)
+	screen := Screen{tScreen: s}
+	screen.updateScreenDimensions()
+	return &screen, nil
 }
 
 // Close - Closes the Screen
-func Close() {
-	Screen.Fini()
+func (s *Screen) Close() {
+	s.tScreen.Fini()
 }
 
-func displayTextFrame() {
+func (s *Screen) DisplayTextFrame() {
 	for y := range textFrame {
 		for x := range textFrame[y] {
-			Screen.SetContent(x, y, textFrame[y][x], nil, tcell.StyleDefault)
+			s.tScreen.SetContent(x, y, textFrame[y][x], nil, tcell.StyleDefault)
 		}
 	}
-	Screen.Show()
+	s.tScreen.Show()
 }
 
-func displayStatusBar() {
-	for x := 0; x < screenDim.X; x++ {
-		Screen.SetContent(x, screenDim.Y-1, ' ', nil, tcell.StyleDefault)
+func (s *Screen) DisplayStatusBar() {
+	for x := 0; x < s.screenDim.X; x++ {
+		s.tScreen.SetContent(x, s.screenDim.Y-1, ' ', nil, tcell.StyleDefault)
 	}
 	if len(statusMessage) > 0 {
 		for x, c := range statusMessage {
-			Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+			s.tScreen.SetContent(x, s.screenDim.Y-1, c, nil, tcell.StyleDefault)
 		}
 	} else {
 		for x, c := range currentCommand {
-			Screen.SetContent(x, screenDim.Y-1, c, nil, tcell.StyleDefault)
+			s.tScreen.SetContent(x, s.screenDim.Y-1, c, nil, tcell.StyleDefault)
 		}
 	}
-	Screen.Show()
+	s.tScreen.Show()
 }
 
-func displayCursor() {
-	Screen.ShowCursor(cursorPosScreen.X, cursorPosScreen.Y)
-	Screen.Show()
+func (s *Screen) DisplayCursor() {
+	s.tScreen.ShowCursor(cursorPosScreen.X, cursorPosScreen.Y)
+	s.tScreen.Show()
 }

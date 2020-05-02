@@ -24,8 +24,7 @@ func main() {
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
-	screen.Init(flag.Args()[0])
-	c := actions.EventStream(screen.Screen)
+	screen.InitBuffer(flag.Args()[0])
+	c := actions.EventStream(screen.GetTerminalScreen())
 	screen.HandleUserActions(c)
-	screen.Close()
 }
