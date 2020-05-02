@@ -6,13 +6,13 @@ import (
 	"os"
 
 	"github.com/manojVivek/go-vim/internal/actions"
+	"github.com/manojVivek/go-vim/internal/editor"
 	"github.com/manojVivek/go-vim/internal/logger"
-	"github.com/manojVivek/go-vim/internal/screen"
 )
 
 func main() {
 	logger.InitLogger()
-	logger.Debug.Printf("Starting")
+	logger.Debug.Printf("Starting Editor")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\n    go-vim [options] filename\n\n")
@@ -24,7 +24,11 @@ func main() {
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
-	screen.InitBuffer(flag.Args()[0])
-	c := actions.EventStream(screen.GetTerminalScreen())
-	screen.HandleUserActions(c)
+	e, err := editor.NewEditor(flag.Args()[0])
+	if err != nil {
+		logger.Debug.Printf("Error %v", err)
+		os.Exit(2)
+	}
+	c := actions.EventStream(e.GetTerminalScreen())
+	e.HandleUserActions(c)
 }
