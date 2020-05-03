@@ -76,3 +76,11 @@ func (e *Editor) syncCursor() {
 	e.syncTextFrame(true)
 	e.screen.DisplayCursor(cursorPosScreen)
 }
+
+func (e *Editor) syncStatusBar() {
+	if len(e.statusMessage) > 0 {
+		e.screen.DisplayStatusBar(e.statusMessage)
+		return
+	}
+	e.screen.DisplayStatusBar(e.currentCommand)
+}

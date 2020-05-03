@@ -76,18 +76,12 @@ func (s *Screen) DisplayTextFrame(textFrame [][]rune) {
 }
 
 // DisplayStatusBar is used to display status bar line on the screen
-func (s *Screen) DisplayStatusBar(statusMessage string, currentCommand string) {
+func (s *Screen) DisplayStatusBar(text string) {
 	for x := 0; x < s.ScreenDim.X; x++ {
 		s.tScreen.SetContent(x, s.ScreenDim.Y-1, ' ', nil, tcell.StyleDefault)
 	}
-	if len(statusMessage) > 0 {
-		for x, c := range statusMessage {
-			s.tScreen.SetContent(x, s.ScreenDim.Y-1, c, nil, tcell.StyleDefault)
-		}
-	} else {
-		for x, c := range currentCommand {
-			s.tScreen.SetContent(x, s.ScreenDim.Y-1, c, nil, tcell.StyleDefault)
-		}
+	for x, c := range text {
+		s.tScreen.SetContent(x, s.ScreenDim.Y-1, c, nil, tcell.StyleDefault)
 	}
 	s.tScreen.Show()
 }

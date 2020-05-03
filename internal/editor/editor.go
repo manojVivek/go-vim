@@ -35,7 +35,7 @@ type Editor struct {
 	fileName                 string
 	dataBuffer               []string
 	startLine                int
-	cursorPos          terminal.Vertex
+	cursorPos                terminal.Vertex
 	currentCommand           string
 	lastUpDownCursorMovement cursorMovement
 	firstLineInFrame         int
@@ -72,7 +72,7 @@ func NewEditor(f string) (Editor, error) {
 	e.screen = s
 	e.syncTextFrame(false)
 	e.syncCursor()
-	e.screen.DisplayStatusBar(e.statusMessage, e.currentCommand)
+	e.syncStatusBar()
 	return e, nil
 }
 
@@ -87,7 +87,7 @@ func (e *Editor) HandleUserActions(c chan actions.Event) {
 			if event.Value == tcell.KeyEscape {
 				e.currentMode = MODE_NORMAL
 				e.statusMessage = ""
-				e.screen.DisplayStatusBar(e.statusMessage, e.currentCommand)
+				e.syncStatusBar()
 				e.fixHorizontalCursorOverflow()
 				e.syncCursor()
 				continue
@@ -110,13 +110,13 @@ func (e *Editor) HandleUserActions(c chan actions.Event) {
 			case 'i':
 				e.currentMode = MODE_INSERT
 				e.statusMessage = "-- INSERT --"
-				e.screen.DisplayStatusBar(e.statusMessage, e.currentCommand)
+				e.syncStatusBar()
 			}
 		case MODE_COMMAND_LINE:
 			if event.Value == tcell.KeyEscape {
 				e.currentMode = MODE_NORMAL
 				e.currentCommand = ""
-				e.screen.DisplayStatusBar(e.statusMessage, e.currentCommand)
+				e.syncStatusBar()
 				continue
 			}
 			if event.Value == tcell.KeyEnter {
@@ -219,7 +219,7 @@ func (e *Editor) handleKeyCommandLineMode(event actions.Event) {
 	} else {
 		e.currentCommand += string(event.Rune)
 	}
-	e.screen.DisplayStatusBar(e.statusMessage, e.currentCommand)
+	e.syncStatusBar()
 }
 
 func (e *Editor) handleKeyInsertMode(event actions.Event) {
