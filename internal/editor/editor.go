@@ -34,10 +34,8 @@ type Editor struct {
 	statusMessage            string
 	fileName                 string
 	dataBuffer               []string
-	textFrame                [][]rune
 	startLine                int
-	cursorPosBuffer          terminal.Vertex
-	cursorPosScreen          terminal.Vertex
+	cursorPos          terminal.Vertex
 	currentCommand           string
 	lastUpDownCursorMovement cursorMovement
 	firstLineInFrame         int
@@ -64,7 +62,7 @@ func NewEditor(f string) (Editor, error) {
 		e.statusMessage += fmt.Sprintf(" %vL, %vC", len(e.dataBuffer), charCount)
 	}
 
-	e.cursorPosBuffer = terminal.Vertex{0, 0}
+	e.cursorPos = terminal.Vertex{0, 0}
 
 	s, err := terminal.NewScreen()
 	if err != nil {
@@ -135,28 +133,28 @@ func (e *Editor) handleTextAreaCursorMovement(event actions.Event) bool {
 	rangeY := len(e.dataBuffer)
 	switch event.Value {
 	case tcell.KeyLeft:
-		if e.cursorPosBuffer.X != 0 {
-			e.cursorPosBuffer.X--
+		if e.cursorPos.X != 0 {
+			e.cursorPos.X--
 			e.syncCursor()
 		}
 	case tcell.KeyRight:
-		e.cursorPosBuffer.X++
+		e.cursorPos.X++
 		e.fixHorizontalCursorOverflow()
 		e.syncCursor()
 	case tcell.KeyDown:
-		if e.cursorPosBuffer.Y+1 != rangeY {
-			e.cursorPosBuffer.Y++
+		if e.cursorPos.Y+1 != rangeY {
+			e.cursorPos.Y++
 			e.lastUpDownCursorMovement = CURSOR_DOWN
 			e.fixHorizontalCursorOverflow()
 			e.fixVerticalCursorOverflow()
 			e.syncCursor()
 		}
 	case tcell.KeyUp:
-		if e.cursorPosBuffer.Y != 0 {
-			e.cursorPosBuffer.Y--
+		if e.cursorPos.Y != 0 {
+			e.cursorPos.Y--
 			e.lastUpDownCursorMovement = CURSOR_UP
 			e.fixHorizontalCursorOverflow()
-			if e.cursorPosBuffer.Y < e.firstLineInFrame {
+			if e.cursorPos.Y < e.firstLineInFrame {
 				e.firstLineInFrame--
 				if e.lastLineInFrame-e.firstLineInFrame > e.screen.ScreenDim.Y-1 {
 					e.lastLineInFrame--
@@ -171,7 +169,7 @@ func (e *Editor) handleTextAreaCursorMovement(event actions.Event) bool {
 }
 
 func (e *Editor) fixVerticalCursorOverflow() {
-	if e.cursorPosBuffer.Y > e.lastLineInFrame {
+	if e.cursorPos.Y > e.lastLineInFrame {
 		if e.lastLineInFrame+1 >= len(e.dataBuffer) {
 			return
 		}
@@ -186,15 +184,15 @@ func (e *Editor) fixVerticalCursorOverflow() {
 }
 
 func (e *Editor) fixHorizontalCursorOverflow() {
-	rangeX := len(e.dataBuffer[e.cursorPosBuffer.Y])
+	rangeX := len(e.dataBuffer[e.cursorPos.Y])
 	if e.currentMode != MODE_INSERT {
 		rangeX--
 		if rangeX < 0 {
 			rangeX = 0
 		}
 	}
-	if rangeX < e.cursorPosBuffer.X {
-		e.cursorPosBuffer.X = rangeX
+	if rangeX < e.cursorPos.X {
+		e.cursorPos.X = rangeX
 	}
 }
 
@@ -229,47 +227,47 @@ func (e *Editor) handleKeyInsertMode(event actions.Event) {
 	case tcell.KeyEnter:
 		newBuffer := make([]string, len(e.dataBuffer)+1)
 		copy(newBuffer, e.dataBuffer)
-		if e.cursorPosBuffer.Y < len(e.dataBuffer)-1 {
-			for i := len(newBuffer) - 1; i > e.cursorPosBuffer.Y; i-- {
+		if e.cursorPos.Y < len(e.dataBuffer)-1 {
+			for i := len(newBuffer) - 1; i > e.cursorPos.Y; i-- {
 				newBuffer[i] = newBuffer[i-1]
 			}
 		}
 
-		if e.cursorPosBuffer.X < len(e.dataBuffer[e.cursorPosBuffer.Y]) {
-			newBuffer[e.cursorPosBuffer.Y] = e.dataBuffer[e.cursorPosBuffer.Y][:e.cursorPosBuffer.X]
-			newBuffer[e.cursorPosBuffer.Y+1] = e.dataBuffer[e.cursorPosBuffer.Y][e.cursorPosBuffer.X:]
+		if e.cursorPos.X < len(e.dataBuffer[e.cursorPos.Y]) {
+			newBuffer[e.cursorPos.Y] = e.dataBuffer[e.cursorPos.Y][:e.cursorPos.X]
+			newBuffer[e.cursorPos.Y+1] = e.dataBuffer[e.cursorPos.Y][e.cursorPos.X:]
 		}
-		e.cursorPosBuffer.Y++
-		e.cursorPosBuffer.X = 0
+		e.cursorPos.Y++
+		e.cursorPos.X = 0
 		e.lastUpDownCursorMovement = CURSOR_DOWN
 		e.dataBuffer = newBuffer
 		e.fixVerticalCursorOverflow()
 		e.syncTextFrame(false)
 	case tcell.KeyBackspace, tcell.KeyBackspace2:
-		if e.cursorPosBuffer.X == 0 && e.cursorPosBuffer.Y == 0 {
+		if e.cursorPos.X == 0 && e.cursorPos.Y == 0 {
 			return
 		}
-		if e.cursorPosBuffer.X > 0 {
+		if e.cursorPos.X > 0 {
 			// Delete a character in a line
-			line := e.dataBuffer[e.cursorPosBuffer.Y]
-			e.dataBuffer[e.cursorPosBuffer.Y] = line[:e.cursorPosBuffer.X-1] + line[e.cursorPosBuffer.X:]
-			e.cursorPosBuffer.X--
+			line := e.dataBuffer[e.cursorPos.Y]
+			e.dataBuffer[e.cursorPos.Y] = line[:e.cursorPos.X-1] + line[e.cursorPos.X:]
+			e.cursorPos.X--
 		} else {
 			// Merge the contents of this line to previous line
 			newBuffer := make([]string, len(e.dataBuffer)-1)
 			j := 0
 			for i, line := range e.dataBuffer {
-				if i == e.cursorPosBuffer.Y {
+				if i == e.cursorPos.Y {
 					continue
 				}
-				if i == e.cursorPosBuffer.Y-1 {
-					line = line + e.dataBuffer[e.cursorPosBuffer.Y]
+				if i == e.cursorPos.Y-1 {
+					line = line + e.dataBuffer[e.cursorPos.Y]
 				}
 				newBuffer[j] = line
 				j++
 			}
-			e.cursorPosBuffer.X = len(e.dataBuffer[e.cursorPosBuffer.Y-1])
-			e.cursorPosBuffer.Y--
+			e.cursorPos.X = len(e.dataBuffer[e.cursorPos.Y-1])
+			e.cursorPos.Y--
 			e.dataBuffer = newBuffer
 		}
 		e.syncTextFrame(false)
@@ -277,87 +275,11 @@ func (e *Editor) handleKeyInsertMode(event actions.Event) {
 		if event.Rune == 0 {
 			return
 		}
-		line := e.dataBuffer[e.cursorPosBuffer.Y]
-		e.dataBuffer[e.cursorPosBuffer.Y] = line[:e.cursorPosBuffer.X] + string(event.Rune) + line[e.cursorPosBuffer.X:]
-		e.cursorPosBuffer.X++
+		line := e.dataBuffer[e.cursorPos.Y]
+		e.dataBuffer[e.cursorPos.Y] = line[:e.cursorPos.X] + string(event.Rune) + line[e.cursorPos.X:]
+		e.cursorPos.X++
 		e.syncTextFrame(false)
 	}
-}
-
-func (e *Editor) syncTextFrame(dontSyncCursor bool) {
-
-	textFrameTemp := e.fillTextFrameFromTop()
-
-	textFrameTemp = e.fillEmptyLinesIfAnyWithTilde(textFrameTemp)
-
-	e.textFrame = textFrameTemp
-	e.screen.DisplayTextFrame(e.textFrame)
-	if dontSyncCursor == false {
-		e.syncCursor()
-	}
-}
-
-func (e *Editor) fillEmptyLinesIfAnyWithTilde(textFrameTemp [][]rune) [][]rune {
-	//Fill the empty lines in the frame with '~' char
-	shouldTilde := true
-	for i := len(textFrameTemp) - 1; i > 0; i-- {
-		if textFrameTemp[i] != nil {
-			shouldTilde = false
-			continue
-		}
-		textFrameTemp[i] = make([]rune, e.screen.ScreenDim.X)
-		if shouldTilde {
-			textFrameTemp[i][0] = '~'
-		}
-
-	}
-	return textFrameTemp
-}
-
-func (e *Editor) fillTextFrameFromTop() [][]rune {
-	x := 0
-	y := 0
-	textFrameTemp := make([][]rune, e.screen.ScreenDim.Y-1)
-	i := e.firstLineInFrame
-	for {
-		x = 0
-		line := e.dataBuffer[i]
-		for _, char := range line {
-			if textFrameTemp[y] == nil {
-				textFrameTemp[y] = make([]rune, e.screen.ScreenDim.X)
-			}
-			textFrameTemp[y][x] = char
-			if x+1 == e.screen.ScreenDim.X {
-				x = 0
-				y++
-			} else {
-				x++
-			}
-		}
-
-		if i+1 == len(e.dataBuffer) || y == e.screen.ScreenDim.Y-2 {
-			break
-		}
-		i++
-		y++
-	}
-	e.lastLineInFrame = i
-	return textFrameTemp
-}
-
-func (e *Editor) syncCursor() {
-	e.cursorPosScreen = terminal.Vertex{e.cursorPosBuffer.X, e.cursorPosBuffer.Y}
-	e.cursorPosScreen.Y -= e.firstLineInFrame
-	for i := e.firstLineInFrame; i < e.cursorPosBuffer.Y; i++ {
-		e.cursorPosScreen.Y += (len(e.dataBuffer[i]) / e.screen.ScreenDim.X)
-	}
-	for e.cursorPosScreen.X > e.screen.ScreenDim.X {
-		e.cursorPosScreen.X -= e.screen.ScreenDim.X
-		e.cursorPosScreen.Y++
-	}
-
-	e.syncTextFrame(true)
-	e.screen.DisplayCursor(e.cursorPosScreen)
 }
 
 func (e *Editor) GetTerminalScreen() (s tcell.Screen) {
