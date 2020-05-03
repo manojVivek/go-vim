@@ -59,7 +59,7 @@ func NewEditor(f string) (Editor, error) {
 		for _, line := range e.dataBuffer {
 			charCount += len(line) + 1
 		}
-		e.statusMessage += fmt.Sprintf(" %vL, %vC", len(e.dataBuffer), charCount)
+		e.statusMessage += fmt.Sprintf(" %vL, %vC", e.getLinesCount(), charCount)
 	}
 
 	e.cursorPos = terminal.Vertex{0, 0}
@@ -102,16 +102,7 @@ func (e *Editor) HandleUserActions(c chan actions.Event) {
 				e.syncCursor()
 				continue
 			}
-			switch event.Rune {
-			case ':':
-				e.currentMode = MODE_COMMAND_LINE
-				e.statusMessage = ""
-				e.handleKeyCommandLineMode(event)
-			case 'i':
-				e.currentMode = MODE_INSERT
-				e.statusMessage = "-- INSERT --"
-				e.syncStatusBar()
-			}
+			e.handleKeyNormalMode(event)
 		case MODE_COMMAND_LINE:
 			if event.Value == tcell.KeyEscape {
 				e.currentMode = MODE_NORMAL
@@ -130,7 +121,7 @@ func (e *Editor) HandleUserActions(c chan actions.Event) {
 
 func (e *Editor) handleTextAreaCursorMovement(event actions.Event) bool {
 	isProcessed := true
-	rangeY := len(e.dataBuffer)
+	rangeY := e.getLinesCount()
 	switch event.Value {
 	case tcell.KeyLeft:
 		if e.cursorPos.X != 0 {
@@ -169,8 +160,8 @@ func (e *Editor) handleTextAreaCursorMovement(event actions.Event) bool {
 }
 
 func (e *Editor) fixVerticalCursorOverflow() {
-	if e.cursorPos.Y > e.lastLineInFrame {
-		if e.lastLineInFrame+1 >= len(e.dataBuffer) {
+	for e.cursorPos.Y > e.lastLineInFrame {
+		if e.lastLineInFrame+1 >= e.getLinesCount() {
 			return
 		}
 		e.lastLineInFrame++
@@ -184,7 +175,7 @@ func (e *Editor) fixVerticalCursorOverflow() {
 }
 
 func (e *Editor) fixHorizontalCursorOverflow() {
-	rangeX := len(e.dataBuffer[e.cursorPos.Y])
+	rangeX := e.getCurrentLineLength()
 	if e.currentMode != MODE_INSERT {
 		rangeX--
 		if rangeX < 0 {
@@ -210,6 +201,43 @@ func (e *Editor) runCommand(cmd string) {
 	}
 }
 
+func (e *Editor) getCurrentLineLength() int {
+	return len(e.dataBuffer[e.cursorPos.Y])
+}
+
+func (e *Editor) getLinesCount() int {
+	return len(e.dataBuffer)
+}
+
+func (e *Editor) switchToInsertMode() {
+	e.currentMode = MODE_INSERT
+	e.statusMessage = "-- INSERT --"
+	e.syncStatusBar()
+}
+
+func (e *Editor) handleKeyNormalMode(event actions.Event) {
+	switch event.Rune {
+	case ':':
+		e.currentMode = MODE_COMMAND_LINE
+		e.statusMessage = ""
+		e.handleKeyCommandLineMode(event)
+	case 'i':
+		e.switchToInsertMode()
+	case 'A':
+		e.cursorPos.X = e.getCurrentLineLength()
+		e.switchToInsertMode()
+		e.syncCursor()
+	case 'G':
+		l := e.getLinesCount() - 1
+		if l < 0 {
+			l = 0
+		}
+		e.cursorPos.Y = l
+		e.fixVerticalCursorOverflow()
+		e.syncTextFrame(false)
+	}
+}
+
 func (e *Editor) handleKeyCommandLineMode(event actions.Event) {
 	if event.Rune == 0 {
 		return
@@ -225,15 +253,15 @@ func (e *Editor) handleKeyCommandLineMode(event actions.Event) {
 func (e *Editor) handleKeyInsertMode(event actions.Event) {
 	switch event.Value {
 	case tcell.KeyEnter:
-		newBuffer := make([]string, len(e.dataBuffer)+1)
+		newBuffer := make([]string, e.getLinesCount()+1)
 		copy(newBuffer, e.dataBuffer)
-		if e.cursorPos.Y < len(e.dataBuffer)-1 {
+		if e.cursorPos.Y < e.getLinesCount()-1 {
 			for i := len(newBuffer) - 1; i > e.cursorPos.Y; i-- {
 				newBuffer[i] = newBuffer[i-1]
 			}
 		}
 
-		if e.cursorPos.X < len(e.dataBuffer[e.cursorPos.Y]) {
+		if e.cursorPos.X < e.getCurrentLineLength() {
 			newBuffer[e.cursorPos.Y] = e.dataBuffer[e.cursorPos.Y][:e.cursorPos.X]
 			newBuffer[e.cursorPos.Y+1] = e.dataBuffer[e.cursorPos.Y][e.cursorPos.X:]
 		}
@@ -254,7 +282,7 @@ func (e *Editor) handleKeyInsertMode(event actions.Event) {
 			e.cursorPos.X--
 		} else {
 			// Merge the contents of this line to previous line
-			newBuffer := make([]string, len(e.dataBuffer)-1)
+			newBuffer := make([]string, e.getLinesCount()-1)
 			j := 0
 			for i, line := range e.dataBuffer {
 				if i == e.cursorPos.Y {

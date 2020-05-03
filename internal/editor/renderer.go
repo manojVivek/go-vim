@@ -52,7 +52,7 @@ func (e *Editor) fillTextFrameFromTop() [][]rune {
 			}
 		}
 
-		if i+1 == len(e.dataBuffer) || y == e.screen.ScreenDim.Y-2 {
+		if i+1 == e.getLinesCount() || y == e.screen.ScreenDim.Y-2 {
 			break
 		}
 		i++
