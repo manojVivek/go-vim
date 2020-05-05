@@ -41,6 +41,7 @@ type Editor struct {
 	firstLineInFrame         int
 	lastLineInFrame          int
 	screen                   *terminal.Screen
+	isDirty                  bool
 }
 
 // NewEditor is a contructor function for the Editor
@@ -187,13 +188,25 @@ func (e *Editor) fixHorizontalCursorOverflow() {
 	}
 }
 
+func (e *Editor) quit(force bool) {
+	if e.isDirty && !force {
+		e.statusMessage = "E37: No write since last change (add ! to override)"
+		return
+	}
+	e.screen.Close()
+	os.Exit(0)
+}
+
 func (e *Editor) runCommand(cmd string) {
 	switch cmd {
 	case ":q":
-		e.screen.Close()
-		os.Exit(0)
-	case ":wq":
-		fs.WriteLinesToFile(e.fileName, e.dataBuffer)
+		e.quit(false)
+	case ":q!":
+		e.quit(true)
+	case ":wq", ":x":
+		if e.isDirty {
+			fs.WriteLinesToFile(e.fileName, e.dataBuffer)
+		}
 		e.screen.Close()
 		os.Exit(0)
 	default:
@@ -251,6 +264,7 @@ func (e *Editor) handleKeyCommandLineMode(event actions.Event) {
 }
 
 func (e *Editor) handleKeyInsertMode(event actions.Event) {
+	e.isDirty = true
 	switch event.Value {
 	case tcell.KeyEnter:
 		newBuffer := make([]string, e.getLinesCount()+1)
