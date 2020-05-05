@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/manojVivek/go-vim/internal/actions"
 	"github.com/manojVivek/go-vim/internal/editor"
 	"github.com/manojVivek/go-vim/internal/logger"
 )
@@ -24,11 +23,9 @@ func main() {
 	if len(flag.Args()) == 0 {
 		flag.Usage()
 	}
-	e, err := editor.NewEditor(flag.Args()[0])
+	_, err := editor.NewEditor(flag.Args()[0])
 	if err != nil {
 		logger.Debug.Printf("Error %v", err)
 		os.Exit(2)
 	}
-	c := actions.EventStream(e.GetTerminalScreen())
-	e.HandleUserActions(c)
 }

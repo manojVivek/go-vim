@@ -42,6 +42,7 @@ type Editor struct {
 	lastLineInFrame          int
 	screen                   *terminal.Screen
 	isDirty                  bool
+	userEventChannel         chan actions.Event
 }
 
 // NewEditor is a contructor function for the Editor
@@ -74,12 +75,19 @@ func NewEditor(f string) (Editor, error) {
 	e.syncTextFrame(false)
 	e.syncCursor()
 	e.syncStatusBar()
+	e.listenToEvents()
 	return e, nil
 }
 
+func (e *Editor) listenToEvents() {
+	e.userEventChannel = make(chan actions.Event)
+	actions.EventStream(e.userEventChannel, e.screen.TerminalScreen())
+	e.HandleUserActions()
+}
+
 // HandleUserActions - function that listens the user input channel and handles it appropriately
-func (e *Editor) HandleUserActions(c chan actions.Event) {
-	for event := range c {
+func (e *Editor) HandleUserActions() {
+	for event := range e.userEventChannel {
 		if event.Kind != "KEY_PRESS" {
 			continue
 		}
@@ -322,8 +330,4 @@ func (e *Editor) handleKeyInsertMode(event actions.Event) {
 		e.cursorPos.X++
 		e.syncTextFrame(false)
 	}
-}
-
-func (e *Editor) GetTerminalScreen() (s tcell.Screen) {
-	return e.screen.TerminalScreen()
 }

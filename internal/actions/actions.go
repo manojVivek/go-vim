@@ -12,10 +12,8 @@ type Event struct {
 }
 
 // EventStream - create a channel that streams the user events
-func EventStream(s tcell.Screen) chan Event {
-	c := make(chan Event)
+func EventStream(c chan Event, s tcell.Screen) {
 	go pollAndStreamEvents(s, c)
-	return c
 }
 
 func pollAndStreamEvents(s tcell.Screen, c chan Event) {
