@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -51,7 +52,9 @@ func NewEditor(f string) (Editor, error) {
 
 	var err error
 	// TODO: Load only the required portion in memory instead of whole file
-	e.dataBuffer, err = fs.ReadFileToLines(f)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	e.dataBuffer, err = fs.ReadFileToLines(ctx, f)
 	e.statusMessage = fmt.Sprintf("\"%v\"", f)
 	if err != nil {
 		e.dataBuffer = make([]string, 1)
@@ -213,7 +216,9 @@ func (e *Editor) runCommand(cmd string) {
 		e.quit(true)
 	case ":wq", ":x":
 		if e.isDirty {
-			fs.WriteLinesToFile(e.fileName, e.dataBuffer)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			fs.WriteLinesToFile(ctx, e.fileName, e.dataBuffer)
 		}
 		e.screen.Close()
 		os.Exit(0)
