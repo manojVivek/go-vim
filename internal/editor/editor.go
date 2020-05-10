@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/manojVivek/go-vim/internal/logger"
 
@@ -208,23 +209,38 @@ func (e *Editor) quit(force bool) {
 	os.Exit(0)
 }
 
-func (e *Editor) runCommand(cmd string) {
-	switch cmd {
-	case ":q":
-		e.quit(false)
-	case ":q!":
-		e.quit(true)
-	case ":wq", ":x":
-		if e.isDirty {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-			fs.WriteLinesToFile(ctx, e.fileName, e.dataBuffer)
+func (e *Editor) runCommand(cmdFull string) {
+	cmd := cmdFull[1:]
+	lineNum, err := strconv.Atoi(cmd)
+	if err == nil {
+		if lineNum > e.getLinesCount() {
+			lineNum = e.getLinesCount()
 		}
-		e.screen.Close()
-		os.Exit(0)
-	default:
-		e.currentCommand = ""
+		if lineNum < 1 {
+			lineNum = 1
+		}
+		e.cursorPos.Y = lineNum - 1
+		e.fixVerticalCursorOverflow()
+		e.syncTextFrame(false)
+	} else {
+		switch cmd {
+		case "q":
+			e.quit(false)
+		case "q!":
+			e.quit(true)
+		case "wq", "x":
+			if e.isDirty {
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				fs.WriteLinesToFile(ctx, e.fileName, e.dataBuffer)
+			}
+			e.screen.Close()
+			os.Exit(0)
+		}
 	}
+	e.currentCommand = ""
+	e.syncStatusBar()
+	e.currentMode = MODE_NORMAL
 }
 
 func (e *Editor) getCurrentLineLength() int {
@@ -265,7 +281,7 @@ func (e *Editor) handleKeyNormalMode(event actions.Event) {
 }
 
 func (e *Editor) handleKeyCommandLineMode(event actions.Event) {
-	if event.Rune == 0 {
+	if event.Rune == 0 || event.Value == tcell.KeyEnter {
 		return
 	}
 	if event.Value == tcell.KeyBackspace || event.Value == tcell.KeyBackspace2 {
